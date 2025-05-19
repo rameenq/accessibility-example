@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Colour-Blind Challenge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+
+  <div class="max-w-2xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
+    <h1 class="text-2xl font-bold mb-4 text-center">🎯 Colour‑Blind Challenge</h1>
+
+    <canvas id="gameCanvas" width="400" height="300" class="border border-gray-300 mx-auto mb-6"></canvas>
+
+    <div class="flex justify-center space-x-4 mb-4">
+      <button id="startBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Start Game</button>
+      <button id="filterBtn" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">Toggle Filter</button>
+    </div>
+
+    <div class="mb-4">
+      <label class="block font-medium">Choose Color Scheme:</label>
+      <select id="colorSelect" class="mt-1 block w-full p-2 border rounded">
+        <option value="default">Default</option>
+        <option value="deuteranopia">Deuteranopia Mode</option>
+        <option value="protanopia">Protanopia Mode</option>
+        <option value="achromatopsia">Achromatopsia Mode</option>
+      </select>
+    </div>
+
+    <div class="mb-4">
+      <label class="block font-medium">Your Name:</label>
+      <input type="text" id="nameInput" class="mt-1 block w-full p-2 border rounded" />
+    </div>
+
+    <button id="submitBtn" class="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Submit Score</button>
+
+    <p id="statusMsg" class="text-center mt-4 text-sm text-gray-500"></p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+  
+    const startBtn = document.getElementById("startBtn");
+    const filterBtn = document.getElementById("filterBtn");
+    const colorSelect = document.getElementById("colorSelect");
+    const submitBtn = document.getElementById("submitBtn");
+    const nameInput = document.getElementById("nameInput");
+    const statusMsg = document.getElementById("statusMsg");
+  
+    let filterMode = "default";
+    let gameStarted = false;
+    let gameOver = false;
+    let shapes = [];
+    let score = 0;
+    let totalCircles = 0;
+  
+    function getColor(type) {
+      if (filterMode === "protanopia") {
+        return type === "circle" ? "#7B7B7B" : "#8B5E3C";
+      } else if (filterMode === "deuteranopia") {
+        return type === "circle" ? "#777777" : "#666666";
+      } else if (filterMode === "achromatopsia") {
+        return "#999999";
+      } else {
+        return type === "circle" ? "#3366FF" : "#FF3333";
+      }
+    }
+  
+    function generateShapes() {
+      shapes = [];
+      totalCircles = 0;
+  
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 6; j++) {
+          const x = 60 * j + 40;
+          const y = 60 * i + 40;
+          const isCircle = (i + j) % 2 === 0;
+  
+          if (isCircle) totalCircles++;
+  
+          shapes.push({
+            x,
+            y,
+            radius: 20,
+            type: isCircle ? "circle" : "square",
+            collected: false
+          });
+        }
+      }
+    }
+  
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+      shapes.forEach(shape => {
+        if (shape.collected) return;
+  
+        ctx.fillStyle = getColor(shape.type);
+        if (shape.type === "circle") {
+          ctx.beginPath();
+          ctx.arc(shape.x, shape.y, shape.radius, 0, 2 * Math.PI);
+          ctx.fill();
+        } else {
+          ctx.fillRect(shape.x - shape.radius, shape.y - shape.radius, shape.radius * 2, shape.radius * 2);
+        }
+      });
+  
+      ctx.fillStyle = "#000";
+      ctx.font = "16px sans-serif";
+      ctx.fillText("Score: " + score, 10, 20);
+  
+      if (gameOver && score < totalCircles * 10) {
+        ctx.fillStyle = "red";
+        ctx.font = "24px sans-serif";
+        ctx.fillText("Game Over!", 140, 160);
+      }
+  
+      if (score === totalCircles * 10) {
+        ctx.fillStyle = "green";
+        ctx.font = "24px sans-serif";
+        ctx.fillText("🎉 You Win!", 150, 160);
+      }
+    }
+  
+    function isClickedShape(shape, mouseX, mouseY) {
+      if (shape.collected) return false;
+  
+      if (shape.type === "circle") {
+        const dx = mouseX - shape.x;
+        const dy = mouseY - shape.y;
+        return Math.sqrt(dx * dx + dy * dy) <= shape.radius;
+      } else {
+        return (
+          mouseX >= shape.x - shape.radius &&
+          mouseX <= shape.x + shape.radius &&
+          mouseY >= shape.y - shape.radius &&
+          mouseY <= shape.y + shape.radius
+        );
+      }
+    }
+  
+    canvas.addEventListener("click", (e) => {
+      if (!gameStarted || gameOver) return;
+  
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+  
+      for (let shape of shapes) {
+        if (isClickedShape(shape, mouseX, mouseY)) {
+          if (shape.type === "circle") {
+            shape.collected = true;
+            score += 10;
+            drawGame();
+  
+            if (score === totalCircles * 10) {
+              gameOver = true;
+              drawGame();
+            }
+          } else {
+            gameOver = true;
+            drawGame();
+            break;
+          }
+        }
+      }
+    });
+  
+    startBtn.onclick = () => {
+      gameStarted = true;
+      gameOver = false;
+      score = 0;
+      filterMode = "default";
+      generateShapes();
+      drawGame();
+    };
+  
+    filterBtn.onclick = () => {
+      if (!gameStarted || gameOver) {
+        alert("Start a new game to apply filters.");
+        return;
+      }
+      filterMode = colorSelect.value;
+      drawGame();
+    };
+  
+    colorSelect.onchange = () => {
+      if (gameStarted && !gameOver) {
+        filterMode = colorSelect.value;
+        drawGame();
+      }
+    };
+    submitBtn.onclick = async () => {
+    if (!gameStarted || !gameOver) {
+      alert("You must finish a game first.");
+      return;
+    }
+
+    const name = nameInput.value || "Anonymous";
+    const mode = colorSelect.value;
+
+    const payload = {
+      name,
+      mode,
+      score,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      const res = await fetch("http://localhost:3000/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (data.status === "success") {
+        statusMsg.textContent = "✔ Score submitted!";
+      } else {
+        statusMsg.textContent = "❌ Failed to submit.";
+      }
+    } catch (err) {
+      console.error(err);
+      statusMsg.textContent = "🚫 Could not connect to server.";
+    }
+  };
+  
+    ctx.fillStyle = "#ccc";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#000";
+    ctx.font = "18px sans-serif";
+    ctx.fillText("Click 'Start Game' to begin", 80, 150);
+  </script>
+  
+  
+  
+</body>
+</html>
